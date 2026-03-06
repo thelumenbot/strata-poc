@@ -7,7 +7,10 @@ import {
 // ─── FONTS ────────────────────────────────────────────────────────────────────
 const FONTS = `@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body,#root{width:100%;height:100%;margin:0;padding:0;overflow:hidden}`;
+html,body,#root{width:100%;height:100%;margin:0;padding:0;overflow:hidden}
+html{-webkit-text-size-adjust:100%}
+body{padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+`;
 
 // ─── TOKENS ───────────────────────────────────────────────────────────────────
 const S = {
@@ -673,9 +676,19 @@ function HealthMapView(){
   );
 }
 
-// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+// ─── MOBILE DETECTION HOOK ────────────────────────────────────────────────────
+function useIsMobile(){
+  const[isMobile,setIsMobile]=useState(()=>window.innerWidth<768);
+  useState(()=>{
+    const fn=()=>setIsMobile(window.innerWidth<768);
+    window.addEventListener("resize",fn);
+    return ()=>window.removeEventListener("resize",fn);
+  });
+  return isMobile;
+}
+
+// ─── SIDEBAR (desktop only) ───────────────────────────────────────────────────
 function Sidebar({activeFeature,onSelect,activeView,onViewChange}){
-  // FIX: use Set to allow multiple domains open simultaneously
   const[openDomains,setOpenDomains]=useState(new Set(["checkout"]));
   const[openTeams,setOpenTeams]=useState(new Set(["conversion"]));
 
@@ -691,7 +704,6 @@ function Sidebar({activeFeature,onSelect,activeView,onViewChange}){
         </div>
         <p style={{margin:"6px 0 0",fontSize:10,color:S.muted,fontFamily:S.sans}}>See through every layer.</p>
       </div>
-
       <div style={{padding:"10px 10px 4px"}}>
         <p style={{margin:"0 8px 6px",fontSize:9,textTransform:"uppercase",letterSpacing:"0.08em",color:S.faint,fontWeight:700,fontFamily:S.sans}}>Observabilidade</p>
         {[{id:"dashboard",label:"Dashboards",icon:"⊞"},{id:"healthmap",label:"Health Map",icon:"⬡"}].map(v=>(
@@ -700,9 +712,7 @@ function Sidebar({activeFeature,onSelect,activeView,onViewChange}){
           </div>
         ))}
       </div>
-
       <div style={{height:1,background:S.border,margin:"4px 0"}}/>
-
       <div style={{flex:1,overflowY:"auto",padding:"6px 8px"}}>
         <p style={{margin:"4px 8px 6px",fontSize:9,textTransform:"uppercase",letterSpacing:"0.08em",color:S.faint,fontWeight:700,fontFamily:S.sans}}>Seus Domínios</p>
         {DOMAINS_TREE.map(domain=>(
@@ -730,7 +740,6 @@ function Sidebar({activeFeature,onSelect,activeView,onViewChange}){
           </div>
         ))}
       </div>
-
       <div style={{padding:"11px 14px",borderTop:`1px solid ${S.border}`,display:"flex",alignItems:"center",gap:7}}>
         <StrataLogo size={14}/>
         <p style={{margin:0,fontSize:10,color:S.muted,fontFamily:S.sans}}>Powered by <span style={{color:S.green,fontWeight:600}}>OpenTelemetry</span></p>
@@ -739,26 +748,224 @@ function Sidebar({activeFeature,onSelect,activeView,onViewChange}){
   );
 }
 
+// ─── MOBILE TOP BAR ───────────────────────────────────────────────────────────
+function MobileTopBar({activeView,activeDomain,domainStatus}){
+  const domainLabel=DOMAINS_TREE.find(d=>d.id===activeDomain)?.label||activeDomain;
+  return (
+    <div style={{
+      display:"flex",alignItems:"center",gap:10,
+      padding:"10px 16px",
+      paddingTop:"calc(10px + env(safe-area-inset-top,0px))",
+      borderBottom:`1px solid ${S.border}`,
+      background:S.bg,flexShrink:0,
+    }}>
+      <StrataLogo size={22}/>
+      <div style={{flex:1}}>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:14,fontWeight:700,color:S.text,fontFamily:S.sans,letterSpacing:"-0.02em"}}>strata</span>
+          {domainStatus!=="ok"&&activeView==="dashboard"&&(
+            <span style={{fontSize:8,fontWeight:700,textTransform:"uppercase",color:SC[domainStatus],background:SC[domainStatus]+"18",padding:"1px 5px",borderRadius:3,fontFamily:S.sans}}>{SL[domainStatus]}</span>
+          )}
+        </div>
+        {activeView==="dashboard"&&(
+          <p style={{margin:0,fontSize:10,color:S.muted,fontFamily:S.sans}}>{domainLabel}</p>
+        )}
+        {activeView==="healthmap"&&(
+          <p style={{margin:0,fontSize:10,color:S.muted,fontFamily:S.sans}}>Health Map</p>
+        )}
+        {activeView==="domains"&&(
+          <p style={{margin:0,fontSize:10,color:S.muted,fontFamily:S.sans}}>Domínios</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MOBILE BOTTOM NAV ────────────────────────────────────────────────────────
+function MobileBottomNav({activeView,onViewChange}){
+  const tabs=[
+    {id:"dashboard",label:"Dashboard",icon:"⊞"},
+    {id:"healthmap",label:"Health Map",icon:"⬡"},
+    {id:"domains",label:"Domínios",icon:"◈"},
+  ];
+  return (
+    <div style={{
+      display:"flex",borderTop:`1px solid ${S.border}`,background:S.bg,flexShrink:0,
+      paddingBottom:"env(safe-area-inset-bottom,0px)",
+    }}>
+      {tabs.map(t=>(
+        <div key={t.id} onClick={()=>onViewChange(t.id)} style={{
+          flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+          padding:"10px 0",cursor:"pointer",
+          borderTop:activeView===t.id?`2px solid ${S.green}`:"2px solid transparent",
+          transition:"all 0.15s",
+        }}>
+          <span style={{fontSize:16,color:activeView===t.id?S.green:S.muted,marginBottom:2}}>{t.icon}</span>
+          <span style={{fontSize:9,color:activeView===t.id?S.green:S.muted,fontFamily:S.sans,fontWeight:activeView===t.id?600:400}}>{t.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── MOBILE DOMAINS VIEW ──────────────────────────────────────────────────────
+function MobileDomainsView({activeDomain,onSelect,onViewChange}){
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}>
+      <p style={{margin:"0 0 12px",fontSize:9,textTransform:"uppercase",letterSpacing:"0.08em",color:S.muted,fontWeight:700,fontFamily:S.sans}}>Seus Domínios</p>
+      {DOMAINS_TREE.map(domain=>(
+        <div key={domain.id} style={{marginBottom:8}}>
+          <div style={{background:S.surface,borderRadius:10,border:`1px solid ${domain.status!=="ok"?SC[domain.status]+"30":S.border}`,overflow:"hidden"}}>
+            <div style={{padding:"12px 14px",borderBottom:`1px solid ${S.border}`,display:"flex",alignItems:"center",gap:8}}>
+              <Dot status={domain.status} pulse={domain.status==="critical"} size={7}/>
+              <span style={{flex:1,fontSize:13,fontWeight:600,color:S.text,fontFamily:S.sans}}>{domain.label}</span>
+              {domain.status!=="ok"&&<span style={{fontSize:8,fontWeight:700,textTransform:"uppercase",color:SC[domain.status],background:SC[domain.status]+"18",padding:"1px 5px",borderRadius:3,fontFamily:S.sans}}>{SL[domain.status]}</span>}
+            </div>
+            {domain.teams.map(team=>
+              team.features.map(f=>(
+                <div key={f.id} onClick={()=>{onSelect(f.id);onViewChange("dashboard");}} style={{
+                  display:"flex",alignItems:"center",gap:10,padding:"10px 14px",
+                  borderBottom:`1px solid ${S.border}`,cursor:"pointer",
+                  background:f.id===activeDomain?S.greenDim:"transparent",
+                }}>
+                  <Dot status={f.status} pulse={f.status==="critical"} size={6}/>
+                  <div style={{flex:1}}>
+                    <p style={{margin:0,fontSize:12,fontFamily:S.mono,color:f.status==="ok"?S.muted:S.text}}>{f.label}</p>
+                    <p style={{margin:0,fontSize:10,color:S.muted,fontFamily:S.sans}}>{team.label}</p>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <p style={{margin:0,fontSize:11,fontWeight:700,color:SC[f.status],fontFamily:S.mono}}>{f.metric}</p>
+                    <p style={{margin:0,fontSize:9,color:f.delta?.startsWith("−")?S.warn:S.muted,fontFamily:S.mono}}>{f.delta}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── MOBILE DASHBOARD VIEW ────────────────────────────────────────────────────
+function MobileDashboardView({dashboards,onUpdate,activeDomain}){
+  const widgets=dashboards[activeDomain]||[];
+
+  // On mobile: single column, reduced heights
+  const MOBILE_HEIGHTS={
+    stat:100,conv_chart:200,latency:200,error_dist:180,
+    stack:280,timeline:160,slo:160,heatmap:300,alert_list:160,
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"12px 16px 16px"}}>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {/* Stat widgets: 2 per row on mobile */}
+        {(() => {
+          const stats=widgets.filter(w=>w.type==="stat");
+          const rest=widgets.filter(w=>w.type!=="stat");
+          return [
+            stats.length>0&&(
+              <div key="stats" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {stats.map(w=>(
+                  <div key={w.id} style={{background:S.surface,border:`1px solid ${S.border}`,borderRadius:10,height:MOBILE_HEIGHTS.stat,overflow:"hidden"}}>
+                    {WIDGET_RENDERERS.stat(w)}
+                  </div>
+                ))}
+              </div>
+            ),
+            ...rest.map(w=>{
+              const renderer=WIDGET_RENDERERS[w.type];
+              const height=MOBILE_HEIGHTS[w.type]||180;
+              return (
+                <div key={w.id} style={{background:S.surface,border:`1px solid ${S.border}`,borderRadius:10,height,overflow:"hidden"}}>
+                  {renderer?renderer(w):<div style={{padding:16,color:S.muted,fontSize:12,fontFamily:S.sans}}>Widget</div>}
+                </div>
+              );
+            })
+          ].filter(Boolean);
+        })()}
+        {widgets.length===0&&(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 20px",color:S.muted,textAlign:"center"}}>
+            <span style={{fontSize:32,marginBottom:12,opacity:0.4}}>⊞</span>
+            <p style={{margin:0,fontSize:14,fontFamily:S.sans}}>Dashboard vazio</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MOBILE DOMAIN SWITCHER (tab strip) ───────────────────────────────────────
+function MobileDomainStrip({activeDomain,onSelect}){
+  return (
+    <div style={{display:"flex",gap:8,overflowX:"auto",padding:"10px 16px 0",flexShrink:0,scrollbarWidth:"none"}}>
+      {DOMAINS_TREE.map(d=>(
+        <div key={d.id} onClick={()=>onSelect(d.id)} style={{
+          display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:20,flexShrink:0,
+          cursor:"pointer",border:`1px solid ${activeDomain===d.id?SC[d.status]+"60":S.border}`,
+          background:activeDomain===d.id?SC[d.status]+"10":S.surface,
+          fontSize:11,color:activeDomain===d.id?S.text:S.muted,fontFamily:S.sans,fontWeight:activeDomain===d.id?600:400,
+          transition:"all 0.15s",
+        }}>
+          <Dot status={d.status} pulse={d.status==="critical"} size={5}/>
+          {d.label.split("&")[0].trim()}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function Strata(){
   const[activeFeature,setActiveFeature]=useState("checkout");
   const[activeView,setActiveView]=useState("dashboard");
+  const[activeDomain,setActiveDomain]=useState("checkout");
   const[dashboards,setDashboards]=useState(INITIAL_DASHBOARDS);
+  const isMobile=useIsMobile();
 
   const updateDashboard=(domainId,widgets)=>setDashboards(d=>({...d,[domainId]:widgets}));
+  const domainStatus=DOMAINS_TREE.find(d=>d.id===activeDomain)?.status||"ok";
 
+  const globalStyles=`
+    ${FONTS}
+    @keyframes ripple{0%{transform:scale(1);opacity:0.4}100%{transform:scale(2.8);opacity:0}}
+    ::-webkit-scrollbar{width:3px;height:3px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:${S.border2};border-radius:2px}
+    button{transition:opacity 0.1s}
+    button:hover:not(:disabled){opacity:0.82}
+  `;
+
+  if(isMobile){
+    return (
+      <div style={{height:"100dvh",background:S.bg,display:"flex",flexDirection:"column",fontFamily:S.sans,color:S.muted,overflow:"hidden"}}>
+        <style>{globalStyles}</style>
+        <MobileTopBar activeView={activeView} activeDomain={activeDomain} domainStatus={domainStatus}/>
+
+        {/* Domain strip — only on dashboard view */}
+        {activeView==="dashboard"&&(
+          <MobileDomainStrip activeDomain={activeDomain} onSelect={setActiveDomain}/>
+        )}
+
+        {/* Main content */}
+        {activeView==="dashboard"&&(
+          <MobileDashboardView dashboards={dashboards} onUpdate={updateDashboard} activeDomain={activeDomain}/>
+        )}
+        {activeView==="healthmap"&&<HealthMapView/>}
+        {activeView==="domains"&&(
+          <MobileDomainsView activeDomain={activeDomain} onSelect={(id)=>{setActiveDomain(id);}} onViewChange={setActiveView}/>
+        )}
+
+        <MobileBottomNav activeView={activeView} onViewChange={setActiveView}/>
+      </div>
+    );
+  }
+
+  // ── DESKTOP ──
   return (
-    <div style={{minHeight:"100vh",background:S.bg,display:"flex",fontFamily:S.sans,color:S.muted}}>
-      <style>{`
-        ${FONTS}
-        @keyframes ripple{0%{transform:scale(1);opacity:0.4}100%{transform:scale(2.8);opacity:0}}
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:3px}
-        ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:${S.border2};border-radius:2px}
-        button{transition:opacity 0.1s}
-        button:hover:not(:disabled){opacity:0.82}
-      `}</style>
+    <div style={{height:"100dvh",background:S.bg,display:"flex",fontFamily:S.sans,color:S.muted,overflow:"hidden"}}>
+      <style>{globalStyles}</style>
       <Sidebar activeFeature={activeFeature} onSelect={setActiveFeature} activeView={activeView} onViewChange={setActiveView}/>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {activeView==="healthmap"
