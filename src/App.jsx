@@ -5,7 +5,9 @@ import {
 } from "recharts";
 
 // ─── FONTS ────────────────────────────────────────────────────────────────────
-const FONTS = `@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap');`;
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{width:100%;height:100%;margin:0;padding:0;overflow:hidden}`;
 
 // ─── TOKENS ───────────────────────────────────────────────────────────────────
 const S = {
